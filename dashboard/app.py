@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import requests
 
-API = "http://localhost:8000"
+API = "https://athleteiq-api.onrender.com"
 
 st.set_page_config(page_title="AthletIQ", layout="wide")
 st.title("AthletIQ — Sports Analytics Dashboard")
