@@ -65,16 +65,16 @@ python src/models/injury_risk.py
 ## Dashboard Screenshots
 
 ### Match Predictor
-![Match Predictor](https://raw.githubusercontent.com/yourusername/athleteiq/main/assets/tab1_match_predictor.png)
+![Match Predictor](assets/tab1_match_predictor.png)
 
 ### Player Rater
-![Player Rater](https://raw.githubusercontent.com/yourusername/athleteiq/main/assets/tab2_player_rater.png)
+![Player Rater](assets/tab2_player_rater.png)
 
 ### Archetypes
-![Archetypes](https://raw.githubusercontent.com/yourusername/athleteiq/main/assets/tab3_archetypes.png)
+![Archetypes](assets/tab3_archetypes.png)
 
 ### Top Performers
-![Top Performers](https://raw.githubusercontent.com/yourusername/athleteiq/main/assets/tab4_top_performers.png)
+![Top Performers](assets/tab4_top_performers.png)
 
 ## MLflow
 ```bash
