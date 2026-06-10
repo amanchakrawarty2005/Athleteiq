@@ -97,9 +97,16 @@ def cluster_archetypes():
 
 @app.get("/top-performers")
 def top_performers(metric: str = "finishing", limit: int = 10):
+    ALLOWED_METRICS = [
+        "finishing", "dribbling", "short_passing",
+        "sprint_speed", "stamina", "vision", "marking",
+        "heading_accuracy", "ball_control", "acceleration"
+    ]
+    if metric not in ALLOWED_METRICS:
+        raise HTTPException(status_code=400, detail=f"Invalid metric. Choose from {ALLOWED_METRICS}")
+
     conn = sqlite3.connect(RAW / "database.sqlite")
-    df = pd.read_sql(
-        f"""
+    query = f"""
         SELECT p.player_api_id, p.player_name, MAX(pa.{metric}) as {metric}
         FROM Player_Attributes pa
         JOIN Player p ON pa.player_api_id = p.player_api_id
@@ -107,8 +114,7 @@ def top_performers(metric: str = "finishing", limit: int = 10):
         GROUP BY p.player_api_id, p.player_name
         ORDER BY {metric} DESC
         LIMIT {limit}
-        """,
-        conn
-    )
+    """
+    df = pd.read_sql(query, conn)
     conn.close()
     return df.to_dict(orient="records")
