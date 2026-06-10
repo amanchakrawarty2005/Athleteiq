@@ -6,16 +6,12 @@ __pycache__/
 
 # Data
 data/raw/
-data/processed/
 *.sqlite
 *.parquet
 *.csv
 
 # ML
 mlruns/
-*.pkl
-*.joblib
-*.h5
 
 # Env
 .env
@@ -28,5 +24,3 @@ mlruns/
 
 #notes
 athleteiq_explanation.txt
-
-assets/
