@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, HTTPException
 from api.schemas import MatchInput, PlayerRatingOutput, TopPerformersInput
 import joblib
@@ -9,9 +10,10 @@ import sqlite3
 
 app = FastAPI(title="AthletIQ API", version="1.0")
 
-MODELS = Path("models")
-RAW = Path("data/raw")
-PROCESSED = Path("data/processed")
+BASE = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+MODELS = BASE / "models"
+RAW = BASE / "data" / "raw"
+PROCESSED = BASE / "data" / "processed"
 
 # Load models at startup
 match_model = joblib.load(MODELS / "match_predictor.pkl")
@@ -38,6 +40,21 @@ ARCHETYPE_NAMES = {
     4: "Creative Playmaker", 5: "Pressing Forward"
 }
 
+ALLOWED_METRICS = [
+    "finishing", "dribbling", "short_passing",
+    "sprint_speed", "stamina", "vision", "marking",
+    "heading_accuracy", "ball_control", "acceleration"
+]
+
+STAT_COLS = [
+    "crossing", "finishing", "heading_accuracy", "short_passing",
+    "volleys", "dribbling", "curve", "free_kick_accuracy", "long_passing",
+    "ball_control", "acceleration", "sprint_speed", "agility", "reactions",
+    "balance", "shot_power", "jumping", "stamina", "strength", "long_shots",
+    "aggression", "interceptions", "positioning", "vision", "penalties",
+    "marking", "standing_tackle", "sliding_tackle"
+]
+
 
 @app.get("/")
 def root():
@@ -46,7 +63,7 @@ def root():
 
 @app.post("/predict-match")
 def predict_match(data: MatchInput):
-    X = pd.DataFrame([data.dict()])
+    X = pd.DataFrame([data.model_dump()])
     X = X[FEATURES]
     proba = match_model.predict_proba(X)[0]
     classes = label_encoder.classes_
@@ -59,62 +76,59 @@ def predict_match(data: MatchInput):
 
 @app.get("/rate-player/{player_id}")
 def rate_player(player_id: int):
-    conn = sqlite3.connect(RAW / "database.sqlite")
-    df = pd.read_sql(
-        f"SELECT * FROM Player_Attributes WHERE player_api_id={player_id} ORDER BY date DESC LIMIT 1",
-        conn
-    )
-    conn.close()
+    try:
+        conn = sqlite3.connect(RAW / "database.sqlite")
+        df = pd.read_sql(
+            f"SELECT * FROM Player_Attributes WHERE player_api_id={player_id} ORDER BY date DESC LIMIT 1",
+            conn
+        )
+        conn.close()
 
-    if df.empty:
-        raise HTTPException(status_code=404, detail="Player not found")
+        if df.empty:
+            raise HTTPException(status_code=404, detail="Player not found")
 
-    stat_cols = [
-        "crossing", "finishing", "heading_accuracy", "short_passing",
-        "volleys", "dribbling", "curve", "free_kick_accuracy", "long_passing",
-        "ball_control", "acceleration", "sprint_speed", "agility", "reactions",
-        "balance", "shot_power", "jumping", "stamina", "strength", "long_shots",
-        "aggression", "interceptions", "positioning", "vision", "penalties",
-        "marking", "standing_tackle", "sliding_tackle"
-    ]
-    stats = df[stat_cols].fillna(0).values
-    scaled = player_scaler.transform(stats)
-    score = float(player_model.predict(scaled)[0][0]) * 100
+        stats = df[STAT_COLS].fillna(0).values
+        scaled = player_scaler.transform(stats)
+        score = float(player_model.predict(scaled)[0][0]) * 100
 
-    return {
-        "player_id": player_id,
-        "performance_score": round(score, 2),
-        "stats": df[stat_cols].iloc[0].to_dict()
-    }
+        return {
+            "player_id": player_id,
+            "performance_score": round(score, 2),
+            "stats": df[STAT_COLS].iloc[0].to_dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/cluster-archetypes")
 def cluster_archetypes():
-    df = pd.read_parquet(PROCESSED / "player_archetypes.parquet")
-    result = df[["player_api_id", "player_name", "archetype", "pca_x", "pca_y"]].head(500)
-    return result.to_dict(orient="records")
+    try:
+        df = pd.read_parquet(PROCESSED / "player_archetypes.parquet")
+        result = df[["player_api_id", "player_name", "archetype", "pca_x", "pca_y"]].head(500)
+        return result.to_dict(orient="records")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/top-performers")
 def top_performers(metric: str = "finishing", limit: int = 10):
-    ALLOWED_METRICS = [
-        "finishing", "dribbling", "short_passing",
-        "sprint_speed", "stamina", "vision", "marking",
-        "heading_accuracy", "ball_control", "acceleration"
-    ]
     if metric not in ALLOWED_METRICS:
         raise HTTPException(status_code=400, detail=f"Invalid metric. Choose from {ALLOWED_METRICS}")
-
-    conn = sqlite3.connect(RAW / "database.sqlite")
-    query = f"""
-        SELECT p.player_api_id, p.player_name, MAX(pa.{metric}) as {metric}
-        FROM Player_Attributes pa
-        JOIN Player p ON pa.player_api_id = p.player_api_id
-        WHERE pa.{metric} IS NOT NULL
-        GROUP BY p.player_api_id, p.player_name
-        ORDER BY {metric} DESC
-        LIMIT {limit}
-    """
-    df = pd.read_sql(query, conn)
-    conn.close()
-    return df.to_dict(orient="records")
+    try:
+        conn = sqlite3.connect(RAW / "database.sqlite")
+        query = f"""
+            SELECT p.player_api_id, p.player_name, MAX(pa.{metric}) as {metric}
+            FROM Player_Attributes pa
+            JOIN Player p ON pa.player_api_id = p.player_api_id
+            WHERE pa.{metric} IS NOT NULL
+            GROUP BY p.player_api_id, p.player_name
+            ORDER BY {metric} DESC
+            LIMIT {limit}
+        """
+        df = pd.read_sql(query, conn)
+        conn.close()
+        return df.to_dict(orient="records")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
