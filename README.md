@@ -62,6 +62,20 @@ python src/models/injury_risk.py
 | GET | /cluster-archetypes | All players with archetype + PCA coordinates |
 | GET | /top-performers | Ranked player list by position/metric |
 
+## Dashboard Screenshots
+
+### Match Predictor
+![Match Predictor](assets/tab1_match_predictor.png)
+
+### Player Rater
+![Player Rater](assets/tab2_player_rater.png)
+
+### Archetypes
+![Archetypes](assets/tab3_archetypes.png)
+
+### Top Performers
+![Top Performers](assets/tab4_top_performers.png)
+
 ## MLflow
 ```bash
 mlflow ui
